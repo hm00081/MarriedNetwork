@@ -1,6 +1,14 @@
 {
     "homepage": "https://hm00081.github.io/MarriedNetwork",
     "name": "marriednetwork",
+    "scripts": {
+        "start": "node scripts/start.js",
+        "build": "node scripts/build.js",
+        "test": "node scripts/test.js",
+        "predeploy": "npm run build",
+        "deploy": "gh-pages -d build",
+        "firebase-deploy": "firebase deploy"
+    },
     "dependencies": {
         "gh-pages": "^6.0.0"
     }
