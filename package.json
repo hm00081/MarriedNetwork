@@ -1,0 +1,7 @@
+{
+    "homepage": "https://hm00081.github.io/MarriedNetwork",
+    "name": "marriednetwork",
+    "dependencies": {
+        "gh-pages": "^6.0.0"
+    }
+}
