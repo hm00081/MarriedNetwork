@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>MarriedNetwork</title>
+        <script src="https://d3js.org/d3.v6.min.js"></script>
+        <script defer src="./javascript/Network.js" charset="utf-8"></script>
+        <link rel="stylesheet" href="./style/MarriedNetwork.css" />
+    </head>
+    <body>
+        <div id="header">
+            <div id="header_in">
+                <p id="header_p">MarriedNetwork</p>
+            </div>
+        </div>
+        <div id="content">
+            <div id="section_left">
+                <p id="first_left_option">Weight Option</p>
+                <select id="weightOption" style="width: 90%">
+                    <option value="reset">Default</option>
+                    <option value="betweenness">Betweenness</option>
+                    <option value="pagerank">Page Rank</option>
+                    <option value="closeness">Closeness</option>
+                    <option value="degree">Degree</option>
+                </select>
+                <p id="left_option">Node Color</p>
+                <select id="colorOption" style="width: 90%">
+                    <option value="weight">Class Weight</option>
+                    <option value="sex">Sex</option>
+                </select>
+                <div id="chonsu_section">
+                    <p id="left_option">Select Weight</p>
+                    <div id="chonsu_options_container" class="checkbox-container"></div>
+                </div>
+                <!-- <p id="left_option">Metric Value</p>
+                <div id="metric_statistics" class="checkbox-container">
+                    <p id="selected_metric_name">Selected Metric:</p>
+                    <p id="max_value">Max:</p>
+                    <p id="min_value">Min:</p>
+                    <p id="mean_value">Mean:</p>
+                    <p id="median_value">Median:</p>
+                </div> -->
+                <!-- <div id="node_info_container">
+                    <p id="left_option">Selected Node Info</p>
+                    <div id="container_leftbottom">
+                        <table id="node_info_table" class="table" style="margin-bottom: 0px">
+                            <thead>
+                                <tr>
+                                    <th class="name-col">name</th>
+                                    <th class="origin-col">origin</th>
+                                    <th class="score-col">score</th>
+                                </tr>
+                            </thead>
+                        </table>
+                    </div>
+                </div> -->
+            </div>
+            <div class="tooltip"></div>
+            <div id="svg-container"></div>
+        </div>
+        <div id="section_right" class="scrollable">
+            <p id="first_right_option">Sorted Weight Table</p>
+            <div id="container_section_right">
+                <table class="table" style="margin-bottom: 0px">
+                    <thead>
+                        <tr>
+                            <th class="name-col">name</th>
+                            <th class="origin-col">origin</th>
+                            <th class="score-col">score</th>
+                        </tr>
+                    </thead>
+                </table>
+            </div>
+            <div id="node_info_container">
+                <p id="left_option">Selected Node Info</p>
+                <div id="container_rightbottom">
+                    <table id="node_info_table" class="table" style="margin-bottom: 0px">
+                        <thead>
+                            <tr>
+                                <th class="name-col">name</th>
+                                <th class="origin-col">origin</th>
+                                <th class="score-col">score</th>
+                            </tr>
+                        </thead>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>
