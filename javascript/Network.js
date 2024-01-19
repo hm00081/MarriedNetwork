@@ -1,8 +1,8 @@
 const scales = {
-    betweenness: d3.scaleLinear().range([5, 55]),
-    pagerank: d3.scaleLinear().range([5, 55]),
-    closeness: d3.scalePow().exponent(1).range([5, 55]),
-    degree: d3.scaleLinear().range([5, 55]),
+    betweenness: d3.scaleLinear().range([5, 35]),
+    pagerank: d3.scaleLinear().range([5, 35]),
+    closeness: d3.scalePow().exponent(1).range([5, 35]),
+    degree: d3.scaleLinear().range([5, 35]),
 };
 
 const weightScore = [3, 2.979, 2.853, 2.707, 2.612, 2.5, 2.324, 2.186, 2.078, 1];
@@ -11,7 +11,7 @@ const weightScore = [3, 2.979, 2.853, 2.707, 2.612, 2.5, 2.324, 2.186, 2.078, 1]
 // 색상 매핑
 const colorScale = d3.scaleOrdinal().domain(weightScore).range(['#FF9999', '#FFCC99', '#FFFF99', '#CCFF99', '#99FF99', '#99FFCC', '#99FFFF', '#99CCFF', '#9999FF', '#CC99FF']);
 
-Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json('data/metrics_md.json')]).then(function ([nodes, edges, metrics]) {
+Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json('data/metrics_md.json'), d3.json('data/modified_result_GNN.json')]).then(function ([nodes, edges, metrics, gnn]) {
     const width = window.innerWidth;
     const height = window.innerHeight;
 
@@ -23,10 +23,11 @@ Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json(
         .on('zoom', (event) => zoomed(event));
 
     svg.call(zoom);
+    //svg.node().addEventListener('wheel', zoomed, { passive: true });
     svg.call(zoom.transform, d3.zoomIdentity.translate(width / 2, height / 2).scale(0.2));
 
     console.log('Zoom event listener binded');
-
+    //console.log(gnn);
     function zoomed(event) {
         g.attr('transform', event.transform);
     }
@@ -52,7 +53,7 @@ Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json(
 
     const nodeGroup = g.append('g').attr('class', 'nodes').selectAll('g').data(nodes).enter().append('g');
 
-    const opacityScale = d3.scaleLinear().domain([1, 3]).range([0.3, 1]);
+    const opacityScale = d3.scaleLinear().domain([1, 3]).range([0.5, 1]);
 
     let colorOption;
 
@@ -61,13 +62,20 @@ Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json(
     const node = nodeGroup
         .append('circle')
         .attr('class', 'node')
-        .attr('r', (d, i) => (d['본인_관직가중치'] !== null ? radiusScale(d['본인_관직가중치']) : 5))
+        //.attr('r', (d) => (d['본인_관직가중치'] !== null ? radiusScale(d['본인_관직가중치']) : 5))
+        .attr('r', (d) => {
+            const weight = d['본인_관직가중치'] !== null ? d['본인_관직가중치'] : 1;
+            return radiusScale(weight);
+        })
         .attr('fill', (d) => {
+            const weight = d['본인_관직가중치'] !== null ? d['본인_관직가중치'] : 1;
+
             if (!colorOption) {
                 colorOption = 'weight';
             }
+
             if (colorOption === 'weight') {
-                return colorScale(d['본인_관직가중치']);
+                return colorScale(weight);
             } else if (colorOption === 'sex') {
                 if (d['본인_성별'] === 'W') {
                     return 'red';
@@ -82,14 +90,14 @@ Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json(
         })
         .attr('id', (d, i) => 'node-' + i)
         .attr('opacity', (d) => {
-            const originalValue = d['본인_관직가중치'];
-            const opacityValue = originalValue !== null ? opacityScale(originalValue) : 0.3;
+            const weight = d['본인_관직가중치'] !== null ? d['본인_관직가중치'] : 1;
+            const opacityValue = opacityScale(weight);
             d.originalOpacity = opacityValue;
             return opacityValue;
         })
         .call(d3.drag().on('start', dragstarted).on('drag', dragged).on('end', dragended))
         .on('mouseover', function (event, d) {
-            d3.select('.tooltip').transition().duration(200).style('opacity', 0.9);
+            //d3.select('.tooltip').transition().duration(200).style('opacity', 0.9);
             d3.select('.tooltip')
                 .html('ID: ' + d['본인_id'] + '<br>' + '이름: ' + d['본인_명'] + '<br>' + '세대: ' + d['본인_세대'] + '<br>' + '촌수: ' + d['촌수'] + '<br>' + '관직 가중치: ' + d['본인_관직가중치'])
                 .style('left', event.pageX + 'px')
@@ -113,21 +121,29 @@ Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json(
         document.getElementById('chonsu_options_container').appendChild(label);
     });
 
+    let checkedWeights = [];
+
     d3.selectAll('.weightScoreCheckbox').on('change', function () {
-        const checkedValues = d3
+        checkedWeights = d3
             .selectAll('.weightScoreCheckbox:checked')
             .nodes()
             .map((node) => parseFloat(node.value));
 
+        updateNodeAndLabelOpacity();
+    });
+
+    function updateNodeAndLabelOpacity() {
         const nodes = d3.selectAll('.node');
         const labels = d3.selectAll('.nodeLabel');
 
-        if (checkedValues.length > 0) {
+        if (checkedWeights.length > 0) {
             nodes.style('opacity', function (d) {
-                return checkedValues.includes(d['본인_관직가중치']) ? 1 : 0.2;
+                const weight = d['본인_관직가중치'] !== null ? d['본인_관직가중치'] : 1;
+                return checkedWeights.includes(weight) ? 1 : 0.2;
             });
             labels.style('opacity', function (d) {
-                return checkedValues.includes(d['본인_관직가중치']) ? 1 : 0.2;
+                const weight = d['본인_관직가중치'] !== null ? d['본인_관직가중치'] : 1;
+                return checkedWeights.includes(weight) ? 1 : 0.2;
             });
         } else {
             nodes.style('opacity', function (d) {
@@ -137,7 +153,7 @@ Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json(
                 return d.originalOpacity;
             });
         }
-    });
+    }
 
     function nodeClicked(event, d) {
         d3.select('.tooltip').transition().duration(500).style('opacity', 0);
@@ -148,7 +164,7 @@ Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json(
         node.style('opacity', 0.2);
         link.style('opacity', 0.2).classed('highlighted', false);
         labels.style('opacity', 0.2);
-
+        updateNodeAndLabelOpacity();
         edges.forEach((edge) => {
             if (edge.source === d || edge.target === d) {
                 // 연결된 엣지 강조
@@ -163,6 +179,7 @@ Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json(
                 // 연결된 라벨 강조
                 d3.select('#label-' + edge.source.index).style('opacity', 1);
                 d3.select('#label-' + edge.target.index).style('opacity', 1);
+                ㅌ;
             }
         });
 
@@ -205,7 +222,8 @@ Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json(
         .attr('y', 3)
         .attr('opacity', (d) => {
             const originalValue = d['본인_관직가중치'];
-            const opacityValue = originalValue !== null ? opacityScale(originalValue) : 0.3;
+            // const opacityValue = originalValue !== null ? opacityScale(originalValue) : 0.3;
+            const opacityValue = originalValue !== null ? opacityScale(originalValue) : 0.5;
             d.originalOpacity = opacityValue;
             return opacityValue;
         });
@@ -228,6 +246,7 @@ Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json(
             });
 
             resetNodeTable();
+            updateNodeAndLabelOpacity();
         }
     });
 
@@ -249,7 +268,7 @@ Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json(
     const pagerankStats = computeStatistics(metrics['pagerank']);
     const closenessStats = computeStatistics(metrics['closeness']);
     const degreeStats = computeStatistics(metrics['degree']);
-    scales.closeness = d3.scalePow().exponent(5).domain([closenessStats.min, closenessStats.max]).range([5, 55]);
+    scales.closeness = d3.scalePow().exponent(5).domain([closenessStats.min, closenessStats.max]).range([5, 35]);
 
     scales.betweenness.domain([betweennessStats.min, betweennessStats.max]);
     scales.pagerank.domain([pagerankStats.min, pagerankStats.max]);
@@ -272,6 +291,16 @@ Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json(
         d.initialRadius = radiusScale(d['본인_관직가중치']) || 5;
     });
 
+    // Update: input GNN Score
+    nodes.forEach((node) => {
+        const gnnScores = gnn[node['본인_id']];
+        if (gnnScores) {
+            node['gnnScores'] = gnnScores;
+        }
+    });
+
+    console.log(nodes);
+
     function reset() {
         node.attr('r', (d) => d.initialRadius);
         simulation.force('collide', d3.forceCollide(6));
@@ -279,7 +308,7 @@ Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json(
     }
 
     document.addEventListener('DOMContentLoaded', function () {
-        console.log('DOMContentLoaded event fired'); // Debug Line 1
+        //console.log('DOMContentLoaded event fired'); // Debug Line 1
         var weightOptionSelect = document.getElementById('weightOption');
         weightOptionSelect.value = 'reset';
         weightOptionSelect.dispatchEvent(new Event('change'));
@@ -287,40 +316,73 @@ Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json(
 
     d3.select('#weightOption').on('change', function () {
         const selectedOption = d3.select(this).property('value');
-        let metric = null;
 
-        switch (selectedOption) {
-            case 'betweenness':
-                metric = 'betweenness';
-                updateNodeSize('betweenness');
-                break;
-            case 'pagerank':
-                metric = 'pagerank';
-                updateNodeSize('pagerank');
-                break;
-            case 'closeness':
-                metric = 'closeness';
-                updateNodeSize('closeness');
-                break;
-            case 'degree':
-                metric = 'degree';
-                updateNodeSize('degree');
-                break;
-            case 'reset':
-                reset();
-                resetMetrics();
-                updateTableBasedOnWeight(nodes);
-                break;
-            default:
-                console.error('Unknown option selected');
-        }
-        if (metric) {
-            updateMetricStatistics(metric);
-            updateTable(metric, nodes);
+        // Check if the selected option is a GNN score
+        const isGnnScore = ['f_fl', 'f_gf_fl', 'f_gf', 'f_gf_w_fl', 'f_gf_w', 'f', 'f_w_fl', 'f_w', 'fl', 'gf_fl', 'gf', 'gf_w_fl', 'gf_w', 'w_fl', 'w'].includes(selectedOption);
+
+        if (isGnnScore) {
+            // If it's a GNN score, update the node size based on the GNN score
+            updateNodeSizeBasedOnGnnScore(selectedOption);
+            updateTableBasedOnWeight(nodes, selectedOption);
+        } else {
+            // If it's not a GNN score, it must be a weight option or reset
+            let metric = null;
+            switch (selectedOption) {
+                case 'betweenness':
+                    metric = 'betweenness';
+                    updateNodeSize('betweenness');
+                    break;
+                case 'pagerank':
+                    metric = 'pagerank';
+                    updateNodeSize('pagerank');
+                    break;
+                case 'closeness':
+                    metric = 'closeness';
+                    updateNodeSize('closeness');
+                    break;
+                case 'degree':
+                    metric = 'degree';
+                    updateNodeSize('degree');
+                    break;
+                case 'reset':
+                    reset();
+                    resetMetrics();
+                    //updateTableBasedOnWeight(nodes);
+                    updateTableBasedOnWeight(nodes, '본인_관직가중치');
+                    return; // Return early since we don't need to update metrics after reset
+                default:
+                    console.error('Unknown option selected');
+                    return; // Return early for an unknown option
+            }
+            updateTableBasedOnWeight(nodes, selectedOption);
+            if (metric) {
+                updateMetricStatistics(metric);
+                updateTable(metric, nodes);
+            }
         }
     });
 
-    function updateTableBasedOnWeight(nodes) {
+    function updateNodeSizeBasedOnGnnScore(gnnScoreKey) {
+        nodes.forEach((node) => {
+            //console.log('Key:', gnnScoreKey, 'Value:', node.gnnScores[gnnScoreKey]);
+
+            const gnnScoreValue = node.gnnScores && node.gnnScores[gnnScoreKey] != null ? node.gnnScores[gnnScoreKey] : 0;
+            const newRadius = gnnScoreValue === 0 ? 5 : radiusScale(gnnScoreValue / 100);
+            node.radius = newRadius;
+            node.currentGnnScore = gnnScoreValue;
+        });
+
+        node.attr('r', (d) => d.radius);
+        //updateTableBasedOnWeight(nodes);
+
+        simulation.force(
+            'collide',
+            d3.forceCollide().radius((d) => d.radius + 1)
+        );
+        simulation.alpha(1).restart();
+    }
+
+    function updateTableBasedOnWeight(nodes, weightKey) {
         const tableData = nodes.map((d) => {
             let name;
             if (/의 딸$/.test(d['본인_명']) || /옹주$|공주$|씨$/.test(d['본인_명'])) {
@@ -329,15 +391,17 @@ Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json(
                 name = d['본인_성'] + d['본인_명'];
             }
 
+            let score = d.gnnScores[weightKey] != null ? d.gnnScores[weightKey] / 100 : d['본인_관직가중치'];
+
             return {
                 // id: d['본인_id'],
                 name: name,
                 origin: d['본인_본관'],
-                score: d['본인_관직가중치'],
+                score: score,
             };
         });
 
-        tableData.sort((a, b) => b.weight - a.weight);
+        tableData.sort((a, b) => b.score - a.score);
 
         const table = d3.select('#container_section_right').select('table');
         let tbody = table.select('tbody');

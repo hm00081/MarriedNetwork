@@ -71,6 +71,7 @@ p#header_p {
     padding-bottom: 0.5%;
     padding-left: 0.5%;
     margin: 0;
+    margin-top: -5px;
 }
 p#first_left_option {
     text-align: left;
