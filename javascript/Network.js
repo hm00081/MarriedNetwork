@@ -97,7 +97,7 @@ Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json(
         })
         .call(d3.drag().on('start', dragstarted).on('drag', dragged).on('end', dragended))
         .on('mouseover', function (event, d) {
-            //d3.select('.tooltip').transition().duration(200).style('opacity', 0.9);
+            d3.select('.tooltip').transition().duration(200).style('opacity', 0.9);
             d3.select('.tooltip')
                 .html('ID: ' + d['본인_id'] + '<br>' + '이름: ' + d['본인_명'] + '<br>' + '세대: ' + d['본인_세대'] + '<br>' + '촌수: ' + d['촌수'] + '<br>' + '관직 가중치: ' + d['본인_관직가중치'])
                 .style('left', event.pageX + 'px')
@@ -179,7 +179,6 @@ Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json(
                 // 연결된 라벨 강조
                 d3.select('#label-' + edge.source.index).style('opacity', 1);
                 d3.select('#label-' + edge.target.index).style('opacity', 1);
-                ㅌ;
             }
         });
 
@@ -188,7 +187,7 @@ Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json(
         labels.filter((label) => label === d).style('opacity', 1);
 
         updateNodeTable([d].concat(connectedNodes));
-        console.log(connectedNodes);
+        console.log('connectedNodes', connectedNodes);
     }
 
     const capitalize = (s) => {
@@ -299,7 +298,7 @@ Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json(
         }
     });
 
-    console.log(nodes);
+    //console.log(nodes);
 
     function reset() {
         node.attr('r', (d) => d.initialRadius);
