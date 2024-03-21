@@ -62,7 +62,6 @@ Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json(
     const node = nodeGroup
         .append('circle')
         .attr('class', 'node')
-        //.attr('r', (d) => (d['본인_관직가중치'] !== null ? radiusScale(d['본인_관직가중치']) : 5))
         .attr('r', (d) => {
             const weight = d['본인_관직가중치'] !== null ? d['본인_관직가중치'] : 1;
             return radiusScale(weight);
@@ -187,7 +186,89 @@ Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json(
         labels.filter((label) => label === d).style('opacity', 1);
 
         updateNodeTable([d].concat(connectedNodes));
-        console.log('connectedNodes', connectedNodes);
+        drawMiniChart(connectedNodes, 'tree');
+        // 레이아웃 버튼의 이벤트 리스너를 여기에서 설정합니다.
+        d3.select('#treeButton').on('click', null); // 이전 리스너 제거
+        d3.select('#treeButton').on('click', () => drawMiniChart(connectedNodes, 'tree'));
+
+        d3.select('#radialButton').on('click', null); // 이전 리스너 제거
+        d3.select('#radialButton').on('click', () => drawMiniChart(connectedNodes, 'radial'));
+    }
+    // Tree와 Radial 레이아웃을 위한 기본 설정
+    const miniWidth = 300;
+    const miniHeight = 300;
+
+    // 작은 시각화를 위한 SVG 컨테이너 생성
+    const miniSvg = d3
+        .select('#mini-container')
+        .append('svg')
+        .attr('width', miniWidth)
+        .attr('height', miniHeight)
+        .append('g')
+        .attr('transform', `translate(${miniWidth / 2}, ${miniHeight / 2})`);
+
+    function drawMiniChart(connectedNodes, type) {
+        // 먼저, connectedNodes로부터 계층 구조 데이터를 만듭니다.
+        const hierarchyData = {
+            name: 'root',
+            children: connectedNodes.map((cn) => {
+                return { name: cn['본인_명'], id: cn['본인_id'] };
+            }),
+        };
+
+        // 그런 다음, 해당 데이터를 사용하여 계층 구조 생성
+        const root = d3.hierarchy(hierarchyData);
+
+        let layout;
+        if (type === 'tree') {
+            layout = d3.tree().size([miniHeight, miniWidth - 100]);
+        } else if (type === 'radial') {
+            layout = d3
+                .tree()
+                .size([2 * Math.PI, miniWidth / 2 - 10])
+                .separation((a, b) => (a.parent == b.parent ? 1 : 2) / a.depth);
+        }
+
+        layout(root);
+
+        // Links
+        const links = miniSvg
+            .selectAll('.link')
+            .data(root.links())
+            .enter()
+            .append('path')
+            .attr('class', 'link')
+            .attr(
+                'd',
+                type === 'radial'
+                    ? d3
+                          .linkRadial()
+                          .angle((d) => d.x)
+                          .radius((d) => d.y)
+                    : d3
+                          .linkHorizontal()
+                          .x((d) => d.y)
+                          .y((d) => d.x)
+            );
+
+        // Nodes
+        const nodes = miniSvg
+            .selectAll('.node')
+            .data(root.descendants())
+            .enter()
+            .append('circle')
+            .attr('class', 'node')
+            .attr(
+                'transform',
+                type === 'radial'
+                    ? (d) => `
+          rotate(${(d.x * 180) / Math.PI - 90})
+          translate(${d.y},0)
+        `
+                    : (d) => `translate(${d.y},${d.x})`
+            )
+            .attr('r', 4);
+        console.log(nodes, links); // 잘 나옴
     }
 
     const capitalize = (s) => {
@@ -259,7 +340,6 @@ Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json(
         const min = d3.min(values);
         const mean = d3.mean(values);
         const median = d3.median(values);
-        // console.log(max, min, mean, median);
         return { max, min, mean, median };
     }
 

@@ -164,6 +164,12 @@ label {
     height: 100%;
 }
 
+#mini-container {
+    width: 12%;
+    flex-grow: 1;
+    overflow: auto;
+}
+
 #svg-container {
     flex-grow: 1;
     overflow: auto;
