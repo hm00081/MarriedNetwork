@@ -3,12 +3,12 @@ const scales = {
     pagerank: d3.scaleLinear().range([5, 35]),
     closeness: d3.scalePow().exponent(1).range([5, 35]),
     degree: d3.scaleLinear().range([5, 35]),
-};
+}; // define node relative size
 
 const weightScore = [3, 2.979, 2.853, 2.707, 2.612, 2.5, 2.324, 2.186, 2.078, 1];
 //const weightScore = [1, 2.078, 2.186, 2.324, 2.5, 2.612, 2.707, 2.853, 2.979, 3];
 
-// 색상 매핑
+// color mapping
 const colorScale = d3.scaleOrdinal().domain(weightScore).range(['#FF9999', '#FFCC99', '#FFFF99', '#CCFF99', '#99FF99', '#99FFCC', '#99FFFF', '#99CCFF', '#9999FF', '#CC99FF']);
 
 Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json('data/metrics_md.json'), d3.json('data/modified_result_GNN.json')]).then(function ([nodes, edges, metrics, gnn]) {
@@ -23,7 +23,6 @@ Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json(
         .on('zoom', (event) => zoomed(event));
 
     svg.call(zoom);
-    //svg.node().addEventListener('wheel', zoomed, { passive: true });
     svg.call(zoom.transform, d3.zoomIdentity.translate(width / 2, height / 2).scale(0.2));
 
     console.log('Zoom event listener binded');
@@ -39,15 +38,14 @@ Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json(
             d3
                 .forceLink()
                 .id((d) => d['본인_id'])
-                .distance(40) // 엣지 거리
+                .distance(40) // edge distance
         )
         .force('charge', d3.forceManyBody())
         .force('charge', d3.forceManyBody().strength(-35))
-        .force('center', d3.forceCenter((width * 1) / 2, (height * 1) / 2));
-    // .force(
-    //     'collide',
-    //     d3.forceCollide((d) => scales['closeness'](metrics['closeness'][d['본인_id']]) + 1)
-    // );
+        .force('center', d3.forceCenter((width * 1) / 2, (height * 1) / 2))
+        .on('end', ticked);
+
+    requestAnimationFrame(ticked);
 
     const link = g.append('g').attr('class', 'links').selectAll('line').data(edges).enter().append('line').attr('class', 'link');
 
@@ -96,6 +94,7 @@ Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json(
         })
         .call(d3.drag().on('start', dragstarted).on('drag', dragged).on('end', dragended))
         .on('mouseover', function (event, d) {
+            // Make Node Tooltip
             d3.select('.tooltip').transition().duration(200).style('opacity', 0.9);
             d3.select('.tooltip')
                 .html('ID: ' + d['본인_id'] + '<br>' + '이름: ' + d['본인_명'] + '<br>' + '세대: ' + d['본인_세대'] + '<br>' + '촌수: ' + d['촌수'] + '<br>' + '관직 가중치: ' + d['본인_관직가중치'])
@@ -106,6 +105,7 @@ Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json(
             d3.select('.tooltip').transition().duration(500).style('opacity', 0);
         });
 
+    // Select Weight(가중치별)
     weightScore.forEach((score) => {
         const label = document.createElement('label');
         label.innerHTML = `
@@ -130,7 +130,7 @@ Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json(
 
         updateNodeAndLabelOpacity();
     });
-
+    // select weight node opacity
     function updateNodeAndLabelOpacity() {
         const nodes = d3.selectAll('.node');
         const labels = d3.selectAll('.nodeLabel');
@@ -186,96 +186,18 @@ Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json(
         labels.filter((label) => label === d).style('opacity', 1);
 
         updateNodeTable([d].concat(connectedNodes));
-        drawMiniChart(connectedNodes, 'tree');
+
         // 레이아웃 버튼의 이벤트 리스너를 여기에서 설정합니다.
         d3.select('#treeButton').on('click', null); // 이전 리스너 제거
-        d3.select('#treeButton').on('click', () => drawMiniChart(connectedNodes, 'tree'));
 
         d3.select('#radialButton').on('click', null); // 이전 리스너 제거
-        d3.select('#radialButton').on('click', () => drawMiniChart(connectedNodes, 'radial'));
-    }
-    // Tree와 Radial 레이아웃을 위한 기본 설정
-    const miniWidth = 300;
-    const miniHeight = 300;
-
-    // 작은 시각화를 위한 SVG 컨테이너 생성
-    const miniSvg = d3
-        .select('#mini-container')
-        .append('svg')
-        .attr('width', miniWidth)
-        .attr('height', miniHeight)
-        .append('g')
-        .attr('transform', `translate(${miniWidth / 2}, ${miniHeight / 2})`);
-
-    function drawMiniChart(connectedNodes, type) {
-        // 먼저, connectedNodes로부터 계층 구조 데이터를 만듭니다.
-        const hierarchyData = {
-            name: 'root',
-            children: connectedNodes.map((cn) => {
-                return { name: cn['본인_명'], id: cn['본인_id'] };
-            }),
-        };
-
-        // 그런 다음, 해당 데이터를 사용하여 계층 구조 생성
-        const root = d3.hierarchy(hierarchyData);
-
-        let layout;
-        if (type === 'tree') {
-            layout = d3.tree().size([miniHeight, miniWidth - 100]);
-        } else if (type === 'radial') {
-            layout = d3
-                .tree()
-                .size([2 * Math.PI, miniWidth / 2 - 10])
-                .separation((a, b) => (a.parent == b.parent ? 1 : 2) / a.depth);
-        }
-
-        layout(root);
-
-        // Links
-        const links = miniSvg
-            .selectAll('.link')
-            .data(root.links())
-            .enter()
-            .append('path')
-            .attr('class', 'link')
-            .attr(
-                'd',
-                type === 'radial'
-                    ? d3
-                          .linkRadial()
-                          .angle((d) => d.x)
-                          .radius((d) => d.y)
-                    : d3
-                          .linkHorizontal()
-                          .x((d) => d.y)
-                          .y((d) => d.x)
-            );
-
-        // Nodes
-        const nodes = miniSvg
-            .selectAll('.node')
-            .data(root.descendants())
-            .enter()
-            .append('circle')
-            .attr('class', 'node')
-            .attr(
-                'transform',
-                type === 'radial'
-                    ? (d) => `
-          rotate(${(d.x * 180) / Math.PI - 90})
-          translate(${d.y},0)
-        `
-                    : (d) => `translate(${d.y},${d.x})`
-            )
-            .attr('r', 4);
-        console.log(nodes, links); // 잘 나옴
     }
 
     const capitalize = (s) => {
         if (typeof s !== 'string') return '';
         return s.charAt(0).toUpperCase() + s.slice(1);
     };
-
+    // capitalize to Uppercase
     const capitalizeWords = (s) => {
         if (typeof s !== 'string') return '';
         return s
@@ -329,7 +251,7 @@ Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json(
             updateNodeAndLabelOpacity();
         }
     });
-
+    // compute network algorithm values
     function computeStatistics(metricValues) {
         if (!metricValues || typeof metricValues !== 'object') {
             console.error('Invalid metricValues:', metricValues);
@@ -372,6 +294,7 @@ Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json(
 
     // Update: input GNN Score
     nodes.forEach((node) => {
+        // gnnScore의 동일한 id에 대해 값들 뿌려주기
         const gnnScores = gnn[node['본인_id']];
         if (gnnScores) {
             node['gnnScores'] = gnnScores;
@@ -387,12 +310,13 @@ Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json(
     }
 
     document.addEventListener('DOMContentLoaded', function () {
-        //console.log('DOMContentLoaded event fired'); // Debug Line 1
+        //DOMContentLoaded = HTML 이벤트 완전히 로딩 후 파싱된 상태
+
         var weightOptionSelect = document.getElementById('weightOption');
         weightOptionSelect.value = 'reset';
-        weightOptionSelect.dispatchEvent(new Event('change'));
+        weightOptionSelect.dispatchEvent(new Event('change')); // change event 강제발생
     });
-
+    // Weight Option
     d3.select('#weightOption').on('change', function () {
         const selectedOption = d3.select(this).property('value');
 
@@ -452,7 +376,6 @@ Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json(
         });
 
         node.attr('r', (d) => d.radius);
-        //updateTableBasedOnWeight(nodes);
 
         simulation.force(
             'collide',
@@ -473,12 +396,11 @@ Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json(
             let score = d.gnnScores[weightKey] != null ? d.gnnScores[weightKey] / 100 : d['본인_관직가중치'];
 
             return {
-                // id: d['본인_id'],
                 name: name,
                 origin: d['본인_본관'],
                 score: score,
             };
-        });
+        }); // name, origin, score  Object table
 
         tableData.sort((a, b) => b.score - a.score);
 
@@ -493,12 +415,13 @@ Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json(
         rows.enter()
             .append('tr')
             .merge(rows)
-            .html((d) => `<td>${d.name}</td><td>${d.origin}</td><td>${d.score.toFixed(2)}</td>`); // 가중치를 출력
+            .html((d) => `<td>${d.name}</td><td>${d.origin}</td><td>${d.score.toFixed(2)}</td>`); // 가중치 출력
 
         rows.exit().remove();
     }
 
     function updateNodeTable(nodes) {
+        // Selected Node Info
         d3.select('#node_info_table tbody').remove();
 
         // 새로운 테이블 데이터 추가
@@ -558,9 +481,9 @@ Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json(
             .merge(rows)
             .html((d) => `<td>${d.name}</td><td>${d.origin}</td><td>${d.score.toFixed(2)}</td>`);
 
-        rows.exit().remove();
+        rows.exit().remove(); // Remove Excess Rows
     }
-    //칼라 옵션
+    //Color Option
     d3.select('#colorOption').on('change', function () {
         colorOption = d3.select(this).node().value;
 
@@ -589,7 +512,7 @@ Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json(
         d3.select('#min_value').text('Min: ' + stats.min);
         d3.select('#mean_value').text('Mean: ' + stats.mean.toFixed(2));
         d3.select('#median_value').text('Median: ' + stats.median);
-    }
+    } // 메트릭 값 요소 현재는 사용 x
 
     function resetMetrics() {
         d3.select('#selected_metric_name').text('Selected Metric: Default');
@@ -608,8 +531,10 @@ Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json(
         node.attr('cx', (d) => d.x).attr('cy', (d) => d.y);
 
         labels.attr('x', (d) => d.x).attr('y', (d) => d.y);
-    }
 
+        requestAnimationFrame(ticked);
+    }
+    // Management Simulation State
     function dragstarted(event, d) {
         if (!event.active) simulation.alphaTarget(0.3).restart();
         d.fx = d.x;
