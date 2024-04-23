@@ -1,12 +1,11 @@
 const scales = {
     betweenness: d3.scaleLinear().range([5, 35]),
     pagerank: d3.scaleLinear().range([5, 35]),
-    closeness: d3.scalePow().exponent(1).range([5, 35]),
+    closeness: d3.scaleLinear().range([5, 35]),
     degree: d3.scaleLinear().range([5, 35]),
-}; // define node relative size
+}; // define node relative size, scaleLinear: linear scale, scalePow: exponent(거듭제곱), 비선형관계
 
 const weightScore = [3, 2.979, 2.853, 2.707, 2.612, 2.5, 2.324, 2.186, 2.078, 1];
-//const weightScore = [1, 2.078, 2.186, 2.324, 2.5, 2.612, 2.707, 2.853, 2.979, 3];
 
 // color mapping
 const colorScale = d3.scaleOrdinal().domain(weightScore).range(['#FF9999', '#FFCC99', '#FFFF99', '#CCFF99', '#99FF99', '#99FFCC', '#99FFFF', '#99CCFF', '#9999FF', '#CC99FF']);
@@ -43,7 +42,7 @@ Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json(
         .force('charge', d3.forceManyBody())
         .force('charge', d3.forceManyBody().strength(-35))
         .force('center', d3.forceCenter((width * 1) / 2, (height * 1) / 2))
-        .on('end', ticked);
+        .on('end', ticked); // ticked: graph update
 
     requestAnimationFrame(ticked);
 
@@ -68,7 +67,7 @@ Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json(
             const weight = d['본인_관직가중치'] !== null ? d['본인_관직가중치'] : 1;
 
             if (!colorOption) {
-                colorOption = 'weight';
+                colorOption = 'weight'; // default
             }
 
             if (colorOption === 'weight') {
@@ -92,6 +91,7 @@ Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json(
             d.originalOpacity = opacityValue;
             return opacityValue;
         })
+        // drag event call
         .call(d3.drag().on('start', dragstarted).on('drag', dragged).on('end', dragended))
         .on('mouseover', function (event, d) {
             // Make Node Tooltip
@@ -102,6 +102,7 @@ Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json(
                 .style('top', event.pageY - 28 + 'px');
         })
         .on('mouseout', function (d) {
+            // hide tooltip
             d3.select('.tooltip').transition().duration(500).style('opacity', 0);
         });
 
@@ -166,28 +167,27 @@ Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json(
         updateNodeAndLabelOpacity();
         edges.forEach((edge) => {
             if (edge.source === d || edge.target === d) {
-                // 연결된 엣지 강조
+                // Hightlight linked edge
                 d3.select('#edge-' + edge.index)
                     .classed('highlighted', true)
                     .style('opacity', 1);
 
-                // 연결된 노드 강조
+                // Highlight linked node
                 d3.select('#node-' + edge.source.index).style('opacity', 1);
                 d3.select('#node-' + edge.target.index).style('opacity', 1);
 
-                // 연결된 라벨 강조
+                // Highlight linked label
                 d3.select('#label-' + edge.source.index).style('opacity', 1);
                 d3.select('#label-' + edge.target.index).style('opacity', 1);
             }
         });
 
-        // 클릭된 노드와 라벨 강조
+        // Highlight clicked node
         d3.select(this).style('opacity', 1).classed('highlighted', true);
         labels.filter((label) => label === d).style('opacity', 1);
 
         updateNodeTable([d].concat(connectedNodes));
 
-        // 레이아웃 버튼의 이벤트 리스너를 여기에서 설정합니다.
         d3.select('#treeButton').on('click', null); // 이전 리스너 제거
 
         d3.select('#radialButton').on('click', null); // 이전 리스너 제거
@@ -326,7 +326,7 @@ Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json(
         if (isGnnScore) {
             // If it's a GNN score, update the node size based on the GNN score
             updateNodeSizeBasedOnGnnScore(selectedOption);
-            updateTableBasedOnWeight(nodes, selectedOption);
+            TableUtils.updateTableBasedOnWeight(nodes, selectedOption);
         } else {
             // If it's not a GNN score, it must be a weight option or reset
             let metric = null;
@@ -349,8 +349,7 @@ Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json(
                     break;
                 case 'reset':
                     reset();
-                    resetMetrics();
-                    //updateTableBasedOnWeight(nodes);
+                    // resetMetrics(); 현재 사용 x
                     updateTableBasedOnWeight(nodes, '본인_관직가중치');
                     return; // Return early since we don't need to update metrics after reset
                 default:
@@ -400,7 +399,7 @@ Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json(
                 origin: d['본인_본관'],
                 score: score,
             };
-        }); // name, origin, score  Object table
+        });
 
         tableData.sort((a, b) => b.score - a.score);
 
@@ -417,7 +416,7 @@ Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json(
             .merge(rows)
             .html((d) => `<td>${d.name}</td><td>${d.origin}</td><td>${d.score.toFixed(2)}</td>`); // 가중치 출력
 
-        rows.exit().remove();
+        rows.exit().remove(); // cleanup
     }
 
     function updateNodeTable(nodes) {
@@ -521,7 +520,7 @@ Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json(
         d3.select('#mean_value').text('Mean: ');
         d3.select('#median_value').text('Median: ');
     }
-
+    // graph update, node and label position
     function ticked() {
         link.attr('x1', (d) => d.source.x)
             .attr('y1', (d) => d.source.y)
@@ -540,7 +539,7 @@ Promise.all([d3.json('data/nodes.json'), d3.json('data/edges_md.json'), d3.json(
         d.fx = d.x;
         d.fy = d.y;
     }
-
+    // drag event call
     function dragged(event, d) {
         d.fx = event.x;
         d.fy = event.y;
